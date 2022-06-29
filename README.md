@@ -78,3 +78,6 @@ Personally I am/was generally working on yeast, and developed this using S.cerev
     zcat ${prefix}.illumina_alignment.cov/${strain}.bwamem_${prefix}.cov.tsv.gz | awk '{print $1"\t"$2"\t"$2"\t"$3}' |\
     bedtools map -b - -a ${reference2}.${window2}kbwindow_${slide2}kbslide.bed -c 4 -o median | awk -v median="$median" '{print $0"\t"$4/median}' > ${prefix}.illumina_alignment.cov.${window2}kbwindow_${slide2}kbsliding/${strain}.bwamem_${prefix}.cov_medianNORM.${window2}kbwindow_${slide2}kbsliding.tsv
     done
+    
+    
+NOT FINISHED IMPORTING STEPS ONTO GITHUB
