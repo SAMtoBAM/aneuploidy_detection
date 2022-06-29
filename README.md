@@ -8,7 +8,7 @@ The script needs a few inputs:
   3. A tsv file with the sample name in the first column and the ploidy value in the second column e.g. '2' for diploid
 
 The script requires only three installed tools in path:
-  1. bwa (alignment)
+  1. bwa (alignment with mem)
   2. samtools (alignment output pre-processing)
   3. bedtools (calculating coverage, formatting bins etc)
 
@@ -18,47 +18,63 @@ As the user there are only a few variables that are required as input depending 
   3. A path to all the illumina files (put all of them in a single folder and name them as '*sample*_1.fq.gz' and '*sample*_2.fq.gz' to simplify the process)
   4. The size of the window used for binning (the region median-averaged to smooth the coverage distribution) = window
   5. The size of the slide for each window (the distance shifted along the genome each step in order to re-calculate the coverage median) = slide
-  6. 
+  6. A prefix which I usually just use the reference sample name etc
+
+Additionally, half a window in size will be removed from the ends of all contigs/scaffolds/chromosomes within the genome provided. 
+Personally I am/was generally working on yeast, and developed this using S.cerevisia. In this respect, for the binning and slide, I used 30kb windows with a 10kb slide because subtelomeric regions in the reference genome are ~30kb. Therefore I found that the trimming of the edges using a half-window size generally worked well in order to heavily smooth out subtelomeric regions which often containing higher coverage.
 
 
-
-    reference=~/Documents/projects/Gcandidum/reference/CLIB918.fa
-    ##same as above but without the file extension
-    reference2=~/Documents/projects/Gcandidum/reference/CLIB918
-    ##reference name
-    refname="CLIB918"
-    bwa index ${reference}
-    ## now take all 114 strains and map them transformaing the data directly into a bam file
-    ls ../illumina_*/*.gz | sed 's/_[12].fq.gz//g' | sort -u | while read strain1
-    do
-    strain2=$( echo $strain1 | awk -F "/" '{print $3}' )
-    bwa mem ${reference} ${strain1}_1.fq.gz ${strain1}_2.fq.gz | samtools sort -o illumina_vs_${refname}/${strain2}.bwamem_${refname}.sorted.bam -
-    done
-    mkdir illumina_vs_${refname}_cov 
-    ls illumina_vs_${refname}/ | awk -F ".bwamem" '{print $1}' | sort -u | while read strain
-    do
-    bedtools genomecov -d -ibam illumina_vs_${refname}/${strain}.bwamem_${refname}.sorted_RG_markdup.bam | gzip > illumina_vs_${refname}_cov/${strain}.bwamem_${refname}.cov.tsv.gz
-    median=$( zcat illumina_vs_${refname}_cov/${strain}.bwamem_${refname}.cov.tsv.gz | awk '{if($3 != "0") print $3}' | sort -n | awk '{ a[i++]=$1} END{x=int((i+1)/2); if(x < (i+1)/2) print (a[x-1]+a[x])/2; else print a[x-1];}' )
-    zcat illumina_vs_${refname}_cov/${strain}.bwamem_${refname}.cov.tsv.gz | awk -v median="$median" '{print $0"\t"$3/median}' | gzip > illumina_vs_${refname}_cov/${strain}.bwamem_${refname}.cov_medianNORM.tsv.gz
-    done
+    ###SET THESE VARIABLES
+    ##path to reference genome
+    reference="path/to/genome.fa"
+    ##prefix name
+    prefix="genome"
+    ##path to folder containing all the illumina files ending with ${sample}_1.fq.gz or ${sample}_2.fq.gz
+    illumina="path/to/illumina_folder"
+    ##path to tsv file containing the sample names in column 1 and ploody status in column 2
+    list="path/to/list.tsv"
+    ##the window size for median-average binning (in bp)
     window=30000
-    ##distance for the window to move before recalculating the window
+    ##distance for the window to move before recalculating the window (in bp)
     slide=10000
-    ##reformatting window and slide numbers for directory generation in kb
+    
+    
+    ##some preprocessing
+    ##index reference genome
+    bwa index ${reference}
+    ##same as path to reference genoe but remove the fasta suffix (removes both .fasta and .fa incase)
+    reference2=$( echo $reference | sed 's/.fa$//g ; s/.fasta$//g'  )
+    ##generate a folder to place the bam files
+    mkdir ${prefix}.illumina_alignment
+    ##generate a folder to place the coverage files
+    mkdir ${prefix}.illumina_alignment.cov
+    
+    ## now take all strains and map; them transforming the data directly into a sorted bam file
+    ##read in the strain list and sample just the strain column and run the loop per strain for mapping
+    cat $list | cut -f1 | while read strain
+    do
+    bwa mem ${reference} ${illumina}/${strain}_1.fq.gz ${illumina}/${strain}_2.fq.gz | samtools sort -o ${prefix}.illumina_alignment/${strain}.bwamem_${prefix}.sorted.bam -
+    done
+    ##calculate the coverage per bam file using bedtools genomecov, using the -ibam option
+    bedtools genomecov -d -ibam ${prefix}.illumina_alignment/${strain}.bwamem_${prefix}.sorted.bam | gzip > ${prefix}.illumina_alignment.cov/${strain}.bwamem_${prefix}.cov.tsv.gz
+    ##calculate genome wide median
+    median=$( zcat ${prefix}.illumina_alignment.cov/${strain}.bwamem_${prefix}.cov.tsv.gz | awk '{if($3 != "0") print $3}' | sort -n | awk '{ a[i++]=$1} END{x=int((i+1)/2); if(x < (i+1)/2) print (a[x-1]+a[x])/2; else print a[x-1];}' )
+    ##generate another file with the genome wide median coverage normalised coverage in the last column
+    zcat ${prefix}.illumina_alignment.cov/${strain}.bwamem_${prefix}.cov.tsv.gz | awk -v median="$median" '{print $0"\t"$3/median}' | gzip > ${prefix}.illumina_alignment.cov/${strain}.bwamem_${prefix}.cov_medianNORM.tsv.gz
+    
+    ##generate a folder to place the binned coverage files
+    mkdir ${prefix}.illumina_alignment.cov.${window2}kbwindow_${slide2}kbsliding
+        ##reformatting window and slide numbers for directory generation in kb
     window2=$( echo $window | awk '{print $0/1000}' )
     slide2=$( echo $slide | awk '{print $0/1000}' )
+    
     ##make a window file 
-    ##first need a reference bed file, can use the fai index
-    cat ${reference}.fai | cut -f1-2 > ${refname}.bed
-    ##now split it up into the above prescribed bins
-    bedtools makewindows -w ${window} -s ${slide} -g ${refname}.bed > ${refname}.${window2}kbwindow_${slide2}kbslide.bed
-    ##now the binning and finding the median
-    ##plus we can immediately add the normalised median coverage as before
-    mkdir illumina_vs_${refname}_cov_${window2}kbwindow_${slide2}kbsliding
-    ls illumina_vs_${refname}_cov/ | awk -F "." '{print $1}' | sort -u | while read strain
-    do
-    median=$( zcat illumina_vs_${refname}_cov/${strain}.bwamem_${refname}.cov.tsv.gz | awk '{if($3 != "0") print $3}' | sort -n | awk '{ a[i++]=$1} END{x=int((i+1)/2); if(x < (i+1)/2) print (a[x-1]+a[x])/2; else print a[x-1];}' )
-    ##get the coverage file then use bedtools map to overlap with the reference derived window file created a single time above
-    zcat illumina_vs_${refname}_cov/${strain}.bwamem_${refname}.cov.tsv.gz | awk '{print $1"\t"$2"\t"$2"\t"$3}' |\
-    bedtools map -b - -a ${refname}.${window2}kbwindow_${slide2}kbslide.bed -c 4 -o median | awk -v median="$median" '{print $0"\t"$4/median}' > illumina_vs_${refname}_cov_${window2}kbwindow_${slide2}kbsliding/${strain}.bwamem_${refname}.cov_medianNORM.${window2}kbwindow_${slide2}kbsliding.tsv
+    ##first need a reference bed file, can use the fai index generated by samtools
+    samtools faidx ${reference}
+    cat ${reference}.fai | cut -f1-2 > ${reference2}.bed
+    ##now split the reference bed file up into the above prescribed bins
+    bedtools makewindows -w ${window} -s ${slide} -g ${reference2}.bed > ${reference2}.${window2}kbwindow_${slide2}kbslide.bed
+    ##get the coverage file (slightly modify by giving a range for the single basepair coverage value) then use bedtools map to overlap with the reference derived window file to create median-averaged bins
+    zcat ${prefix}.illumina_alignment.cov/${strain}.bwamem_${prefix}.cov.tsv.gz | awk '{print $1"\t"$2"\t"$2"\t"$3}' |\
+    bedtools map -b - -a ${reference2}.${window2}kbwindow_${slide2}kbslide.bed -c 4 -o median | awk -v median="$median" '{print $0"\t"$4/median}' > ${prefix}.illumina_alignment.cov.${window2}kbwindow_${slide2}kbsliding/${strain}.bwamem_${prefix}.cov_medianNORM.${window2}kbwindow_${slide2}kbsliding.tsv
     done
