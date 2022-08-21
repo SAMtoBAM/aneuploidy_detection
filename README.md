@@ -28,6 +28,7 @@ As the user there are only a few variables that are required as input depending 
 Additionally, half a window in size will be removed from the ends of all contigs/scaffolds/chromosomes within the genome provided  <br/>
 Personally I am/was generally working on yeast, and developed this using *Saccharomyces cerevisiae*. In this respect, for the binning and slide, I used 30kb windows with a 10kb slide because subtelomeric regions in the reference genome are ~30kb. Therefore I found that the trimming of the edges using a half-window size generally worked well in order to heavily smooth out subtelomeric regions which often containing higher coverage. <br/>
 
+##First steps here are to set variables, generate the alignment and calculate the coverage, both raw and binned.
 
     ###SET THESE VARIABLES
     ##path to reference genome
@@ -89,7 +90,8 @@ Personally I am/was generally working on yeast, and developed this using *Saccha
     
     
     
-    ##Next steps are now to actually analyse the coverage for changes that would be considered, based on the ploidy, deviating sufficiently to be considered a change in copy number
+##Next steps are now to actually analyse the coverage for changes that would be considered, based on the ploidy, deviating sufficiently to be considered a change in copy number
+    
     ##As described above the hard threshold for this is 0.7*1/n, where n is the ploidy
     ##remove any files potentially produced by an earlier round
     rm raw_output*
@@ -228,18 +230,20 @@ Personally I am/was generally working on yeast, and developed this using *Saccha
     cat raw_output.sumnocen.temp.tsv >> raw_output.sumnocen.tsv
     rm raw_output.sumnocen.temp.tsv
 
-    ##Now we generate our candidate simple and complex aneuploidy list
+##Now that we have our regions of copy-number changes (with and without coverage a centromere) we can generate our candidate simple and complex aneuploidy list
+    
     ##first we simply remove any centromere-related (CR) event smaller than 50kb
     ##next we label all of the remaining CRs as complex if the difference between the size of the summed CR region and the chromosome size (minus the 30kb removed from the ends) is greater than 100kb. If it is smaller than 100kb, the CR is labelled as simple. 
     echo "strain,chromosome,largest_bin_size,sum_bin_size,chr_size_unadjusted,proportion_unadjusted,size_diff_unadjusted,chr_size_adjusted,proportion_adjusted,size_diff_adjusted,aneuploidy,aneuploidy_type" | sed 's/,/\t/g' > raw_output.sumcen.candidates.tsv
-cat raw_output.sumcen.tsv | tail -n+2 | awk '{if($7 > 100000 && $3 > 50000) {print $0"\tcomplex"} else if($3 > 50000) {print $0"\tsimple"}}' >> raw_output.sumcen.candidates.tsv
+	cat raw_output.sumcen.tsv | tail -n+2 | awk '{if($7 > 100000 && $3 > 50000) {print $0"\tcomplex"} else if($3 > 50000) {print $0"\tsimple"}}' >> raw_output.sumcen.candidates.tsv
 
-    ###these aneuploidies now need to be manually currated in order to remove false positves
-    ###in order to do this the relative coverage for each aneuploidy chromosome will be calculated and then plotted.
-    ###this will allow me to manually view the alignment for each of these aneuploidies and remove any that do not conform due to strange alignment properties such as the smiley effect or large fluctuations
-    ###getting relative coverage per chromosome
-    ###calculate the median coverage and use this to calculate the relative coverage across the whole genome
-    ###printing relative coverage info next to details on the aneuploidy etc
+##These aneuploidies, considered complex or simple, now need to be manually currated in order to remove false positives. To do this we can plot images of the relative coverage and scrutinise them manually to indicate whether they are truely simple, truely complex, or even aneuploid.
+    
+    ##in order to do this the relative coverage for each aneuploidy chromosome will be calculated and then plotted.
+    ##this will allow me to manually view the alignment for each of these aneuploidies and remove any that do not conform due to strange alignment properties such as the smiley effect or large fluctuations
+    ##getting relative coverage per chromosome
+    ##calculate the median coverage and use this to calculate the relative coverage across the whole genome
+    ##printing relative coverage info next to details on the aneuploidy etc
     echo "chromosome;start;end;coverage;coverage_rel;strain;proportion_chromosome;loss_chromosome;ploidy;aneuploidy_type" | sed 's/;/\t/g' > raw_output.sumcen.candidates.aneuploidy_relativecov.tsv
     cat raw_output.sumcen.candidates.tsv | tail -n+2 | cut -f2 | sort -u | while read chr
     do
