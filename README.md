@@ -26,7 +26,7 @@ As the user there are only a few variables that are required as input depending 
   8. A file containing the centromere positions
 
 Additionally, half a window in size will be removed from the ends of all contigs/scaffolds/chromosomes within the genome provided  <br/>
-Personally I am/was generally working on yeast, and developed this using <i/> Saccharomyces cerevisiae <i/>. In this respect, for the binning and slide, I used 30kb windows with a 10kb slide because subtelomeric regions in the reference genome are ~30kb. Therefore I found that the trimming of the edges using a half-window size generally worked well in order to heavily smooth out subtelomeric regions which often containing higher coverage. <br/>
+Personally I am/was generally working on yeast, and developed this using *Saccharomyces cerevisiae*. In this respect, for the binning and slide, I used 30kb windows with a 10kb slide because subtelomeric regions in the reference genome are ~30kb. Therefore I found that the trimming of the edges using a half-window size generally worked well in order to heavily smooth out subtelomeric regions which often containing higher coverage. <br/>
 
 
     ###SET THESE VARIABLES
