@@ -1,8 +1,10 @@
+[![DOI](https://zenodo.org/badge/508619527.svg)](https://zenodo.org/badge/latestdoi/508619527)
+
+
 # Aneuploidy detection method used for detecting 'simple' and 'complex' aneuploidies
 Script uses simply alignment and a hard threshold for deviation in order to detect changes in coverage <br/>
 The hard threshold is calculated using the ploidy ; 0.7*(1/n) ; with 0.7 set as a conservative measure of deviation <br/>
 For example, for a triploid 0.7*1/3=0.21, meaning a deviation (+-) of 0.21 times the median genome-wide coverage would be considered as a region exhibiting a change in copy number <br/>
-
 
 The script needs a few inputs:
   1. A genome assembly
