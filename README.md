@@ -39,7 +39,7 @@ Personally I am/was generally working on yeast, and developed this using *Saccha
     prefix="genome"
     ##path to folder containing all the illumina files ending with ${sample}_1.fq.gz or ${sample}_2.fq.gz
     illumina="path/to/illumina_folder"
-    ##path to tsv file containing the sample names in column 1 and ploody status in column 2
+    ##path to tsv file containing the sample names in column 1 and ploidy status in column 2
     list="path/to/list.tsv"
     ##the window size for median-average binning (in bp)
     window=30000
